@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control de Gastos del Hogar</title>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+    <div id="root"></div>
+    <script type="text/babel">
+        // Configuración de Firebase
+        const firebaseConfig = {
+          apiKey: "AIzaSyAhq2vI29q2uxYePmUp1sl9ot_OOcjzLs4",
+          authDomain: "control-gastos-465b3.firebaseapp.com",
+          databaseURL: "https://control-gastos-465b3-default-rtdb.firebaseio.com",
+          projectId: "control-gastos-465b3",
+          storageBucket: "control-gastos-465b3.firebasestorage.app",
+          messagingSenderId: "1026967950729",
+          appId: "1:1026967950729:web:03f32e71307652ea49bd58"
+        };
+
+        // Inicializar Firebase
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+
+        const { useState, useEffect } = React;
+        
+        // Iconos
+        const Trash2 = ({ size = 24, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                <line x1="10" y1="11" x2="10" y2="17"></line>
+                <line x1="14" y1="11" x2="14" y2="17"></line>
+            </svg>
+        );
+
+        const Plus = ({ size = 24, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+        );
+
+        const Search = ({ size = 24, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+        );
+
+        function ControlGastos() {
+          const [solapa, setSolapa] = useState('ingresos');
+          const [ingresos, setIngresos] = useState([]);
+          const [egresos, setEgresos] = useState([]);
+          const [modoOscuro, setModoOscuro] = useState(false);
+          
+          const [fechaDesde, setFechaDesde] = useState('');
+          const [fechaHasta, setFechaHasta] = useState('');
+          
+          const [nuevoIngreso, setNuevoIngreso] = useState({
+            categoria: 'Capital de ahorro',
+            monto: '',
+            descripcion: '',
+            fecha: new Date().toISOString().split('T')[0]
+          });
+          
+          const [nuevoEgreso, setNuevoEgreso] = useState({
+            categoria: 'Alimentos',
+            monto: '',
+            descripcion: '',
+            fecha: new Date().toISOString().split('T')[0]
+          });
+
+          // Sincronizar con Firebase en tiempo real
+          useEffect(() => {
+            const ingresosRef = database.ref('ingresos');
+            const egresosRef = database.ref('egresos');
+
+            // Escuchar cambios en ingresos
+            ingresosRef.on('value', (snapshot) => {
+              const data = snapshot.val();
+              if (data) {
+                const ingresosArray = Object.keys(data).map(key => ({
+                  id: key,
+                  ...data[key]
+                }));
+                setIngresos(ingresosArray);
+              } else {
+                setIngresos([]);
+              }
+            });
+
+            // Escuchar cambios en egresos
+            egresosRef.on('value', (snapshot) => {
+              const data = snapshot.val();
+              if (data) {
+                const egresosArray = Object.keys(data).map(key => ({
+                  id: key,
+                  ...data[key]
+                }));
+                setEgresos(egresosArray);
+              } else {
+                setEgresos([]);
+              }
+            });
+
+            // Cleanup
+            return () => {
+              ingresosRef.off();
+              egresosRef.off();
+            };
+          }, []);
+
+          const categoriasIngresos = [
+            'Capital de ahorro',
+            'Ultimo cobro de sueldo',
+            'Capital al dia en Bullmarket',
+            'Capital al dia en Balanz',
+            'Capital al dia en Invertironline',
+            'Capital total al dia de Naranja X',
+            'Capital total al dia de Mercadopago'
+          ];
+
+          const categoriasEgresos = [
+            'Alimentos',
+            'Nafta',
+            'Patente',
+            'Impuestos municipales',
+            'Impuestos provinciales',
+            'Seguro',
+            'Jardin',
+            'Internet',
+            'Gas',
+            'Luz',
+            'Agua',
+            'Indumentaria',
+            'Gastos hormiga (salidas)',
+            'Tarjeta de credito',
+            'Prestamo',
+            'Farmacia'
+          ];
+
+          const agregarIngreso = () => {
+            if (nuevoIngreso.monto && parseFloat(nuevoIngreso.monto) > 0) {
+              const ingresoData = {
+                ...nuevoIngreso,
+                monto: parseFloat(nuevoIngreso.monto)
+              };
+              
+              // Guardar en Firebase
+              database.ref('ingresos').push(ingresoData);
+              
+              // Limpiar formulario
+              setNuevoIngreso({
+                categoria: 'Capital de ahorro',
+                monto: '',
+                descripcion: '',
+                fecha: new Date().toISOString().split('T')[0]
+              });
+            }
+          };
+
+          const agregarEgreso = () => {
+            if (nuevoEgreso.monto && parseFloat(nuevoEgreso.monto) > 0) {
+              const egresoData = {
+                ...nuevoEgreso,
+                monto: parseFloat(nuevoEgreso.monto)
+              };
+              
+              // Guardar en Firebase
+              database.ref('egresos').push(egresoData);
+              
+              // Limpiar formulario
+              setNuevoEgreso({
+                categoria: 'Alimentos',
+                monto: '',
+                descripcion: '',
+                fecha: new Date().toISOString().split('T')[0]
+              });
+            }
+          };
+
+          const eliminarIngreso = (id) => {
+            database.ref('ingresos/' + id).remove();
+          };
+
+          const eliminarEgreso = (id) => {
+            database.ref('egresos/' + id).remove();
+          };
+
+          const filtrarPorFechas = (lista) => {
+            if (!fechaDesde && !fechaHasta) return lista;
+            
+            return lista.filter(item => {
+              const fechaItem = new Date(item.fecha);
+              const desde = fechaDesde ? new Date(fechaDesde) : null;
+              const hasta = fechaHasta ? new Date(fechaHasta) : null;
+              
+              if (desde && hasta) {
+                return fechaItem >= desde && fechaItem <= hasta;
+              } else if (desde) {
+                return fechaItem >= desde;
+              } else if (hasta) {
+                return fechaItem <= hasta;
+              }
+              return true;
+            });
+          };
+
+          const ingresosFiltrados = filtrarPorFechas(ingresos);
+          const egresosFiltrados = filtrarPorFechas(egresos);
+
+          const calcularTotalIngresos = () => {
+            return ingresos.reduce((sum, ing) => sum + ing.monto, 0);
+          };
+
+          const calcularTotalEgresos = () => {
+            return egresos.reduce((sum, eg) => sum + eg.monto, 0);
+          };
+
+          const calcularBalance = () => {
+            return calcularTotalIngresos() - calcularTotalEgresos();
+          };
+
+          const calcularPorCategoria = (lista, categorias) => {
+            const listaFiltrada = filtrarPorFechas(lista);
+            return categorias.map(cat => ({
+              categoria: cat,
+              total: listaFiltrada.filter(item => item.categoria === cat).reduce((sum, item) => sum + item.monto, 0)
+            }));
+          };
+
+          const limpiarFiltros = () => {
+            setFechaDesde('');
+            setFechaHasta('');
+          };
+
+          return (
+            <div className={`min-h-screen p-4 ${modoOscuro ? 'bg-gray-900' : 'bg-blue-600'}`}>
+              <div className={`max-w-4xl mx-auto rounded-lg shadow-lg overflow-hidden ${modoOscuro ? 'bg-gray-800' : 'bg-white'}`}>
+                <div className={`py-6 ${modoOscuro ? 'bg-gray-700' : 'bg-blue-700'}`}>
+                  <h1 className="text-3xl font-bold text-center text-white">
+                    Control de Gastos del Hogar
+                  </h1>
+                  <p className="text-center text-white text-sm mt-2">✨ Sincronizado en tiempo real ✨</p>
+                  <div className="flex justify-center mt-4">
+                    <button
+                      onClick={() => setModoOscuro(!modoOscuro)}
+                      className={`px-4 py-2 rounded-lg font-semibold ${
+                        modoOscuro 
+                          ? 'bg-yellow-400 text-gray-900 hover:bg-yellow-300' 
+                          : 'bg-gray-800 text-white hover:bg-gray-700'
+                      }`}
+                    >
+                      {modoOscuro ? '☀️ Modo Claro' : '🌙 Modo Oscuro'}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex border-b">
+                  <button
+                    onClick={() => setSolapa('ingresos')}
+                    className={`flex-1 py-4 font-semibold ${
+                      solapa === 'ingresos'
+                        ? 'bg-green-500 text-white'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    INGRESOS
+                  </button>
+                  <button
+                    onClick={() => setSolapa('egresos')}
+                    className={`flex-1 py-4 font-semibold ${
+                      solapa === 'egresos'
+                        ? 'bg-red-500 text-white'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    EGRESOS
+                  </button>
+                </div>
+
+                <div className={`p-4 border-b ${modoOscuro ? 'bg-gray-700 border-gray-600' : 'bg-blue-50 border-gray-200'}`}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Search size={20} className={modoOscuro ? 'text-blue-400' : 'text-blue-700'} />
+                    <h3 className={`font-semibold ${modoOscuro ? 'text-blue-300' : 'text-blue-900'}`}>Buscar por Fechas</h3>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div>
+                      <label className={`block text-sm font-medium mb-1 ${modoOscuro ? 'text-gray-300' : 'text-gray-700'}`}>Desde</label>
+                      <input
+                        type="date"
+                        value={fechaDesde}
+                        onChange={(e) => setFechaDesde(e.target.value)}
+                        className={`w-full border rounded px-3 py-2 ${
+                          modoOscuro 
+                            ? 'bg-gray-600 border-gray-500 text-white' 
+                            : 'bg-white border-gray-300 text-gray-900'
+                        }`}
+                      />
+                    </div>
+                    <div>
+                      <label className={`block text-sm font-medium mb-1 ${modoOscuro ? 'text-gray-300' : 'text-gray-700'}`}>Hasta</label>
+                      <input
+                        type="date"
+                        value={fechaHasta}
+                        onChange={(e) => setFechaHasta(e.target.value)}
+                        className={`w-full border rounded px-3 py-2 ${
+                          modoOscuro 
+                            ? 'bg-gray-600 border-gray-500 text-white' 
+                            : 'bg-white border-gray-300 text-gray-900'
+                        }`}
+                      />
+                    </div>
+                    <div className="flex items-end">
+                      <button
+                        onClick={limpiarFiltros}
+                        className="w-full bg-gray-500 hover:bg-gray-600 text-white font-medium py-2 rounded"
+                      >
+                        Limpiar Filtros
+                      </button>
+                    </div>
+                  </div>
+                  {(fechaDesde || fechaHasta) && (
+                    <div className={`mt-2 text-sm ${modoOscuro ? 'text-blue-300' : 'text-blue-700'}`}>
+                      Mostrando resultados {fechaDesde && `desde ${fechaDesde}`} {fechaHasta && `hasta ${fechaHasta}`}
+                    </div>
+                  )}
+                </div>
+
+                {solapa === 'ingresos' && (
+                  <div className="p-6">
+                    <h2 className={`text-2xl font-bold mb-4 ${modoOscuro ? 'text-green-400' : 'text-green-700'}`}>Agregar Ingreso</h2>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                      <div>
+                        <label className={`block text-sm font-medium mb-1 ${modoOscuro ? 'text-gray-300' : 'text-gray-700'}`}>Categoría</label>
+                        <select
+                          value={nuevoIngreso.categoria}
+                          onChange={(e) => setNuevoIngreso({...nuevoIngreso, categoria: e.target.value})}
+                          className={`w-full border rounded px-3 py-2 ${
+                            modoOscuro 
+                              ? 'bg-gray-700 border-gray-600 text-white' 
+                              : 'bg-white border-gray-300 text-gray-900'
+                          }`}
+                        >
+                          {categoriasIngresos.map(cat => (
+                            <option key={cat} value={cat}>{cat}</option>
+                          ))}
+                        </select>
+                      </div>
+                      
+                      <div>
+                        <label className={`block text-sm font-medium mb-1 ${modoOscuro ? 'text-gray-300' : 'text-gray-700'}`}>Monto ($)</label>
+                        <input
+                          type="number"
+                          value={nuevoIngreso.monto}
+                          onChange={(e) => setNuevoIngreso({...nuevoIngreso, monto: e.target.value})}
+                          className={`w-full border rounded px-3 py-2 ${
+                            modoOscuro 
+                              ? 'bg-gray-700 border-gray-600 text-white' 
+                              : 'bg-white border-gray-300 text-gray-900'
+                          }`}
+                          placeholder="0.00"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className={`block text-sm font-medium mb-1 ${modoOscuro ? 'text-gray-300' : 'text-gray-700'}`}>Descripción</label>
+                        <input
+                          type="text"
+                          value={nuevoIngreso.descripcion}
+                          onChange={(e) => setNuevoIngreso({...nuevoIngreso, descripcion: e.target.value})}
+                          className={`w-full border rounded px-3 py-2 ${
+                            modoOscuro 
+                              ? 'bg-gray-700 border-gray-600 text-white' 
+                              : 'bg-white border-gray-300 text-gray-900'
+                          }`}
+                          placeholder="Opcional"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className={`block text-sm font-medium mb-1 ${modoOscuro ? 'text-gray-300' : 'text-gray-700'}`}>Fecha</label>
+                        <input
+                          type="date"
+                          value={nuevoIngreso.fecha}
+                          onChange={(e) => setNuevoIngreso({...nuevoIngreso, fecha: e.target.value})}
+                          className={`w-full border rounded px-3 py-2 ${
+                            modoOscuro 
+                              ? 'bg-gray-700 border-gray-600 text-white' 
+                              : 'bg-white border-gray-300 text-gray-900'
+                          }`}
+                        />
+                      </div>
+                    </div>
+                    
+                    <button
+                      onClick={agregarIngreso}
+                      className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded flex items-center justify-center gap-2"
+                    >
+                      <Plus size={20} /> Agregar Ingreso
+                    </button>
+
+                    <div className="mt-6">
+                      <h3 className={`text-xl font-bold mb-3 ${modoOscuro ? 'text-gray-200' : 'text-gray-900'}`}>Totales por Categoría</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        {calcularPorCategoria(ingresos, categoriasIngresos).map(item => (
+                          <div key={item.categoria} className={`p-3 rounded ${modoOscuro ? 'bg-gray-700' : 'bg-green-50'}`}>
+                            <div className={`text-sm ${modoOscuro ? 'text-gray-400' : 'text-gray-600'}`}>{item.categoria}</div>
+                            <div className={`text-lg font-bold ${modoOscuro ? 'text-green-400' : 'text-green-700'}`}>${item.total.toFixed(2)}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="mt-6">
+                      <h3 className={`text-xl font-bold mb-3 ${modoOscuro ? 'text-gray-200' : 'text-gray-900'}`}>
+                        Historial de Ingresos
+                        {(fechaDesde || fechaHasta) && (
+                          <span className={`text-base font-normal ml-2 ${modoOscuro ? 'text-gray-400' : 'text-gray-600'}`}>
+                            ({ingresosFiltrados.length} de {ingresos.length})
+                          </span>
+                        )}
+                      </h3>
+                      <div className="space-y-2">
+                        {ingresosFiltrados.length === 0 ? (
+                          <p className={`text-center py-4 ${modoOscuro ? 'text-gray-400' : 'text-gray-500'}`}>
+                            {ingresos.length === 0 ? 'No hay ingresos registrados' : 'No hay ingresos en el rango de fechas seleccionado'}
+                          </p>
+                        ) : (
+                          ingresosFiltrados.map(ing => (
+                            <div key={ing.id} className={`p-4 rounded flex justify-between items-center ${modoOscuro ? 'bg-gray-700' : 'bg-green-50'}`}>
+                              <div className="flex-1">
+                                <div className={`font-semibold ${modoOscuro ? 'text-gray-200' : 'text-gray-900'}`}>{ing.categoria}</div>
+                                <div className={`text-sm ${modoOscuro ? 'text-gray-400' : 'text-gray-600'}`}>{ing.descripcion}</div>
+                                <div className={`text-xs ${modoOscuro ? 'text-gray-500' : 'text-gray-500'}`}>{ing.fecha}</div>
+                              </div>
+                              <div className="flex items-center gap-4">
+                                <div className={`text-xl font-bold ${modoOscuro ? 'text-green-400' : 'text-green-700'}`}>${ing.monto.toFixed(2)}</div>
+                                <button
+                                  onClick={() => eliminarIngreso(ing.id)}
+                                  className="text-red-500 hover:text-red-700"
+                                >
+                                  <Trash2 size={20} />
+                                </button>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {solapa === 'egresos' && (
+                  <div className="p-6">
+                    <h2 className={`text-2xl font-bold mb-4 ${modoOscuro ? 'text-red-400' : 'text-red-700'}`}>Agregar Egreso</h2>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                      <div>
+                        <label className={`block text-sm font-medium mb-1 ${modoOscuro ? 'text-gray-300' : 'text-gray-700'}`}>Categoría</label>
+                        <select
+                          value={nuevoEgreso.categoria}
+                          onChange={(e) => setNuevoEgreso({...nuevoEgreso, categoria: e.target.value})}
+                          className={`w-full border rounded px-3 py-2 ${
+                            modoOscuro 
+                              ? 'bg-gray-700 border-gray-600 text-white' 
+                              : 'bg-white border-gray-300 text-gray-900'
+                          }`}
+                        >
+                          {categoriasEgresos.map(cat => (
+                            <option key={cat} value={cat}>{cat}</option>
+                          ))}
+                        </select>
+                      </div>
+                      
+                      <div>
+                        <label className={`block text-sm font-medium mb-1 ${modoOscuro ? 'text-gray-300' : 'text-gray-700'}`}>Monto ($)</label>
+                        <input
+                          type="number"
+                          value={nuevoEgreso.monto}
+                          onChange={(e) => setNuevoEgreso({...nuevoEgreso, monto: e.target.value})}
+                          className={`w-full border rounded px-3 py-2 ${
+                            modoOscuro 
+                              ? 'bg-gray-700 border-gray-600 text-white' 
+                              : 'bg-white border-gray-300 text-gray-900'
+                          }`}
+                          placeholder="0.00"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className={`block text-sm font-medium mb-1 ${modoOscuro ? 'text-gray-300' : 'text-gray-700'}`}>Descripción</label>
+                        <input
+                          type="text"
+                          value={nuevoEgreso.descripcion}
+                          onChange={(e) => setNuevoEgreso({...nuevoEgreso, descripcion: e.target.value})}
+                          className={`w-full border rounded px-3 py-2 ${
+                            modoOscuro 
+                              ? 'bg-gray-700 border-gray-600 text-white' 
+                              : 'bg-white border-gray-300 text-gray-900'
+                          }`}
+                          placeholder="Opcional"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className={`block text-sm font-medium mb-1 ${modoOscuro ? 'text-gray-300' : 'text-gray-700'}`}>Fecha</label>
+                        <input
+                          type="date"
+                          value={nuevoEgreso.fecha}
+                          onChange={(e) => setNuevoEgreso({...nuevoEgreso, fecha: e.target.value})}
+                          className={`w-full border rounded px-3 py-2 ${
+                            modoOscuro 
+                              ? 'bg-gray-700 border-gray-600 text-white' 
+                              : 'bg-white border-gray-300 text-gray-900'
+                          }`}
+                        />
+                      </div>
+                    </div>
+                    
+                    <button
+                      onClick={agregarEgreso}
+                      className="w-full bg-red-500 hover:bg-red-600 text-white font-bold py-3 rounded flex items-center justify-center gap-2"
+                    >
+                      <Plus size={20} /> Agregar Egreso
+                    </button>
+
+                    <div className="mt-6">
+                      <h3 className={`text-xl font-bold mb-3 ${modoOscuro ? 'text-gray-200' : 'text-gray-900'}`}>Totales por Categoría</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        {calcularPorCategoria(egresos, categoriasEgresos).map(item => (
+                          <div key={item.categoria} className={`p-3 rounded ${modoOscuro ? 'bg-gray-700' : 'bg-red-50'}`}>
+                            <div className={`text-sm ${modoOscuro ? 'text-gray-400' : 'text-gray-600'}`}>{item.categoria}</div>
+                            <div className={`text-lg font-bold ${modoOscuro ? 'text-red-400' : 'text-red-700'}`}>${item.total.toFixed(2)}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="mt-6">
+                      <h3 className={`text-xl font-bold mb-3 ${modoOscuro ? 'text-gray-200' : 'text-gray-900'}`}>
+                        Historial de Egresos
+                        {(fechaDesde || fechaHasta) && (
+                          <span className={`text-base font-normal ml-2 ${modoOscuro ? 'text-gray-400' : 'text-gray-600'}`}>
+                            ({egresosFiltrados.length} de {egresos.length})
+                          </span>
+                        )}
+                      </h3>
+                      <div className="space-y-2">
+                        {egresosFiltrados.length === 0 ? (
+                          <p className={`text-center py-4 ${modoOscuro ? 'text-gray-400' : 'text-gray-500'}`}>
+                            {egresos.length === 0 ? 'No hay egresos registrados' : 'No hay egresos en el rango de fechas seleccionado'}
+                          </p>
+                        ) : (
+                          egresosFiltrados.map(eg => (
+                            <div key={eg.id} className={`p-4 rounded flex justify-between items-center ${modoOscuro ? 'bg-gray-700' : 'bg-red-50'}`}>
+                              <div className="flex-1">
+                                <div className={`font-semibold ${modoOscuro ? 'text-gray-200' : 'text-gray-900'}`}>{eg.categoria}</div>
+                                <div className={`text-sm ${modoOscuro ? 'text-gray-400' : 'text-gray-600'}`}>{eg.descripcion}</div>
+                                <div className={`text-xs ${modoOscuro ? 'text-gray-500' : 'text-gray-500'}`}>{eg.fecha}</div>
+                              </div>
+                              <div className="flex items-center gap-4">
+                                <div className={`text-xl font-bold ${modoOscuro ? 'text-red-400' : 'text-red-700'}`}>${eg.monto.toFixed(2)}</div>
+                                <button
+                                  onClick={() => eliminarEgreso(eg.id)}
+                                  className="text-red-500 hover:text-red-700"
+                                >
+                                  <Trash2 size={20} />
+                                </button>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className={`p-8 text-center ${modoOscuro ? 'bg-gray-700' : 'bg-blue-700'}`}>
+                  <div className="grid grid-cols-3 gap-4 mb-6">
+                    <div>
+                      <div className="text-white text-sm mb-1">Total Ingresos</div>
+                      <div className="text-3xl font-bold text-white">${calcularTotalIngresos().toFixed(2)}</div>
+                    </div>
+                    <div>
+                      <div className="text-white text-sm mb-1">Total Egresos</div>
+                      <div className="text-3xl font-bold text-white">${calcularTotalEgresos().toFixed(2)}</div>
+                    </div>
+                    <div>
+                      <div className="text-white text-sm mb-1">Balance</div>
+                      <div className={`text-3xl font-bold ${calcularBalance() >= 0 ? 'text-green-200' : 'text-red-200'}`}>
+                        ${calcularBalance().toFixed(2)}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        }
+
+        ReactDOM.render(<ControlGastos />, document.getElementById('root'));
+    </script>
+</body>
+</html>
